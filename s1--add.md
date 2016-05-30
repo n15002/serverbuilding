@@ -1,0 +1,118 @@
+#<p align=center>第1章 webサーバを作ろう</p>
+
+
+##<a id="0">やることリスト</a>
+* [ ] [vagrant と virtualbox のインストール](#1)
+* [ ] [virtualbox の設定](#2)
+* [ ] [CentOSの準備](#3)
+* [ ] [LAMP環境を作る](#4)
+* [ ] [トラブルシューティング](#5)
+
+##<a id="1" href="#0">vagrant と virtualbox のインストール</a>
+ターミナルで、
+```bash
+sudo apt update && sudo apt install virtualbox vagrant
+```
+と実行するだけ。
+##<a id="2" href="#0">virtualbox の設定</a>
+
+1. ドライブを消す。
+virtualboxの設定 → ストレージ → コントローラ:IDE → ドライブのアイコン → 仮想ドライブからディスクを消去
+
+2. ホストオンリーデバイスを追加する。
+virtualboxのファイル → 環境設定 → ネットワーク → ホストオンリーネットワーク → +のアイコン
+vboxnet0 みたいなデバイスが追加されたら完了
+
+
+##<a id="3" href="#0">CentOSの準備</a>
+
+**もしもenp0s3にIPが割り振られない場合**
+onboot=no を yes にする
+
+#####sshの設定
+
+まずsshの公開鍵と秘密鍵を作成 & 公開鍵を転送
+```bash
+ssh-keygen
+#適当に答える
+ssh-copy-id -i vm_centos.pub 192.168.56.101 
+```
+
+秘密鍵でssh接続
+```bash
+ssh -i vm_centos 192.168.56.101
+```
+
+sshを公開鍵でしか接続できないようにする
+```bash
+sudo vi /etc/ssh/ssh_config
+　PasswordAuthentication no
+　UsePAM no
+```
+
+#####proxy設定
+```bash
+vi ~/.bashrc
+ export http_proxy='http://172.16.40.1:8888'
+ export https_proxy='https://172.16.40.1:8888'
+ alias sudo='sudo -E'
+```
+[参考](http://www.hiihah.info/index.php?yum%E3%82%92proxy%E7%B5%8C%E7%94%B1%E3%81%97%E3%81%9F%E3%81%84)
+
+##<a id="4" href="#0">LAMP構築</a>
+LAMPは、
+```
+ Linux
+ Apache
+ MySQL or MariaDB
+ PHP
+```
+の略
+
+#####mySQLインストールの前準備
+もとから入っているリポジトリにはmysqlが無いので、以下のコマンドで追加する
+```bash
+wget http://dev.mysql.com/get/mysql-community-release-el7-5.noarch.rpm && chmod 700 mysql-community-release-el7-5.noarch.rpm && sudo yum install -y mysql-community-release-el7-5.noarch.rpm
+```
+
+#####mySQL Apache PHPをダウンロード
+```bash
+yum install -y mysql apache php-mysql php
+```
+
+#####mysql設定
+```bash
+$ sudo mysql
+mysql> CREATE DATABASE wordpress;
+mysql> GRANT ALL PRIVILEGES ON wordpress.* TO "wordpress"@'localhost' IDENTIFIED BY "password";
+mysql> FLUSH PRIVILEGES;
+mysql> EXIT
+Bye
+$ 
+```
+
+##<a id="5" href="#0">トラブルシューティング</a>
+#####proxy関係
+ - ubuntu側の ignore-hosts に localhost は設定しているか
+
+#####お使いのサーバーの PHP では WordPress に必要な MySQL 拡張を利用できないようです。
+ - `sudo yum install php-mysql`
+
+#####パスワード忘れた時（メールも送れない時）
+```sql
+begin;
+update wp_users SET user_pass=md5('password') where ID=1;
+select user_pass from wp_users; #ちゃんと確認
+rollback; #失敗したら
+commit; #合っているなら
+```
+- `begin;` トランザクション処理（セーブみたいなもの）
+- `update wp_users SET user_pass=md5('password') where ID=1;` 新しいパスワードで上書き
+- `rollback;` 間違ってしまったらこれで`begin;`に戻れる
+- `commit;`　問題ないならこれで完了する
+
+##余談
+
+
+
+
